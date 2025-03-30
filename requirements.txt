@@ -1,0 +1,9 @@
+Flask
+Flask-CORS
+werkzeug
+Pillow
+pdf2image
+opencv-python
+numpy
+EasyOCR
+gunicorn

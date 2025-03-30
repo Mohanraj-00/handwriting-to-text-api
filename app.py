@@ -1,36 +1,43 @@
-from flask import Flask, request, jsonify
-import easyocr
-import pytesseract
-from PIL import Image
 import os
+import io
+import easyocr
+from flask import Flask, request, jsonify
+from flask_cors import CORS
+from werkzeug.utils import secure_filename
+from PIL import Image
 
+# Initialize Flask app
 app = Flask(__name__)
+CORS(app)  # Enable CORS for frontend communication
 
 # Initialize EasyOCR reader with multiple languages
-reader = easyocr.Reader(['en', 'ta', 'hi'])  # Add more languages as needed
+reader = easyocr.Reader(["en", "hi", "ta", "te", "kn", "mr", "gu", "bn"])  # Add more languages if needed
 
-@app.route('/upload', methods=['POST'])
-def upload_file():
-    if 'file' not in request.files:
-        return jsonify({'error': 'No file uploaded'}), 400
-    
-    file = request.files['file']
-    language = request.form.get('language', 'en')  # Default language is English
-    
-    if file.filename == '':
-        return jsonify({'error': 'No selected file'}), 400
-    
-    file_path = os.path.join("uploads", file.filename)
-    file.save(file_path)
-    
-    # Perform OCR using EasyOCR
-    try:
-        result = reader.readtext(file_path, detail=0, paragraph=True)
-        os.remove(file_path)  # Clean up after processing
-        return jsonify({'text': ' '.join(result)})
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+@app.route("/")
+def home():
+    return "📝 Handwriting to Text API is Running!"
 
-if __name__ == '__main__':
-    os.makedirs("uploads", exist_ok=True)  # Create upload folder if not exists
-    app.run(debug=True)
+@app.route("/upload", methods=["POST"])
+def upload():
+    if "file" not in request.files:
+        return jsonify({"error": "No file uploaded"}), 400
+    
+    file = request.files["file"]
+    
+    if file.filename == "":
+        return jsonify({"error": "No selected file"}), 400
+
+    # Secure the filename
+    filename = secure_filename(file.filename)
+    
+    # Convert file to an image
+    image = Image.open(io.BytesIO(file.read()))
+
+    # Process with EasyOCR
+    extracted_text = reader.readtext(image, detail=0)  # Extract text without bounding box details
+
+    return jsonify({"text": " ".join(extracted_text)})
+
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 5000))  # Get the PORT from environment variables
+    app.run(host="0.0.0.0", port=port)  # Bind to all network interfaces
